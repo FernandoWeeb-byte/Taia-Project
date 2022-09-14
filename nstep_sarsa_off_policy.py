@@ -24,15 +24,40 @@ def softmax_policy(Q, state):
     return np.random.choice(len(probs), p=probs)
 
 
-def softmax_prob(Q, state, a2):
-    probabilities = softmax(Q)
-    a1 = softmax_policy(Q, state)
-    # a2 = choose_action(Q,state)
-    return probabilities[state, a1]/probabilities[state, a2]
+def importance_sampling(Q, state, action, num_actions, epsilon):
+    prob1 = epsilon_greedy_probs(Q, state, num_actions, epsilon)
+    return prob1[action]/(epsilon / num_actions)
 
+
+def epsilon_greedy_probs(Q, state, num_actions, epsilon):
+    # probabilidade que todas as ações têm de ser escolhidas nas decisões exploratórias (não-gulosas)
+    non_greedy_action_probability = epsilon / num_actions
+
+    # conta quantas ações estão empatadas com o valor máximo de Q neste estado
+    q_max = np.max(Q[state, :])
+    greedy_actions = 1
+    for i in range(num_actions):
+        if Q[state][i] == q_max:
+            greedy_actions += 1
+
+    # probabilidade de cada ação empatada com Q máximo:
+    # probabilidade de ser escolhida de forma gulosa (greedy) + probabilidade de ser escolhida de forma exploratória
+    greedy_action_probability = (
+        (1 - epsilon) / greedy_actions) + non_greedy_action_probability
+
+    # prepara a lista de probabilidades: cada índice tem a probabilidade da ação daquele índice
+    probs = []
+    for i in range(num_actions):
+        if Q[state][i] == q_max:
+            probs.append(greedy_action_probability)
+        else:
+            probs.append(non_greedy_action_probability)
+    return probs
 
 # Esta é a política. Neste caso, escolhe uma ação com base nos valores
 # da tabela Q, usando uma estratégia epsilon-greedy.
+
+
 def choose_action(Q, state, num_actions, epsilon):
     if np.random.random() < epsilon:
         return np.random.randint(0, num_actions)
@@ -53,7 +78,6 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
     # usar o estado como índice das linhas e a ação como índice das colunas
     Q = np.random.uniform(low=-1.0, high=0.0,
                           size=(env.observation_space.n, num_actions))
-
     gamma_array = np.array([gamma**i for i in range(0, nstep)])
     gamma_power_nstep = gamma**nstep
 
@@ -93,7 +117,8 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
             hs.append(state)
             ha.append(action)
             hr.append(reward)
-
+            P *= importance_sampling(Q, next_state,
+                                     next_action, num_actions, epsilon)
             # se o histórico estiver completo,
             # vai fazer uma atualização no valor Q do estado mais antigo
             if len(hs) == nstep:
@@ -106,8 +131,6 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
                         Q, next_state, num_actions, epsilon)
                     # para estados não-terminais -- valor máximo (melhor ação)
                     V_next_state = Q[next_state, next_action]
-
-                P *= softmax_prob(Q, next_state, next_action)
 
                 # delta = (estimativa usando a nova recompensa) - estimativa antiga
                 delta = (sum(gamma_array*hr) + gamma_power_nstep *
@@ -126,7 +149,7 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
             ha.popleft()
             hr.popleft()
             delta = (sum(gamma_array[0:j]*hr) + 0) - Q[hs[0], ha[0]]
-            Q[hs[0], ha[0]] += lr * delta
+            Q[hs[0], ha[0]] += lr * P * delta
 
         sum_rewards_per_ep.append(sum_rewards)
 
@@ -151,7 +174,7 @@ if __name__ == "__main__":
     env = gym.make(ENV_NAME)
 
     # Roda o algoritmo "n-step SARSA"
-    rewards, Qtable = run_nstep_sarsa(
+    rewards, Qtable = run_nstep_sarsa_offPolicy(
         env, EPISODES, NSTEPS, LR, GAMMA, EPSILON, render=False)
     print("Últimos resultados: media =", np.mean(
         rewards[-20:]), ", desvio padrao =", np.std(rewards[-20:]))
