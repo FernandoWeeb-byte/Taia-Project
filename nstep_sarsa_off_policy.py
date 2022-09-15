@@ -97,7 +97,7 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
         hs = deque(maxlen=nstep)
         ha = deque(maxlen=nstep)
         hr = deque(maxlen=nstep)
-        P = 1
+        P = deque(maxlen=nstep)
 
         # executa 1 episódio completo, fazendo atualizações na Q-table
         while not done:
@@ -117,8 +117,8 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
             hs.append(state)
             ha.append(action)
             hr.append(reward)
-            P *= importance_sampling(Q, next_state,
-                                     next_action, num_actions, epsilon)
+            P.append(importance_sampling(Q, next_state,
+                                     next_action, num_actions, epsilon))
             # se o histórico estiver completo,
             # vai fazer uma atualização no valor Q do estado mais antigo
             if len(hs) == nstep:
@@ -147,6 +147,7 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
             hs.popleft()
             ha.popleft()
             hr.popleft()
+            P.popleft()
             delta = (sum(gamma_array[0:j]*hr) + 0) - Q[hs[0], ha[0]]
             Q[hs[0], ha[0]] += lr * P * delta
 
@@ -189,8 +190,6 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
         # históricos de: estados, ações e recompensas
         hs = deque(maxlen=nstep)
         ha = deque(maxlen=nstep)
-        hr = deque(maxlen=nstep)
-        P = 1
         G = 0 
 
         # executa 1 episódio completo, fazendo atualizações na Q-table
@@ -212,7 +211,7 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
             ha.append(action)
             # hr.append(reward)
 
-            P *= importance_sampling(Q, next_state,
+            P = importance_sampling(Q, next_state,
                                      next_action, num_actions, epsilon)
 
             G = P * (reward + gamma * G) + (1 - P) * Q[state, action]
@@ -234,7 +233,7 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
                 delta = G - Q[hs[0], ha[0]]
 
                 # atualiza a Q-table para o par (estado,ação) de n passos atrás
-                Q[hs[0], ha[0]] += lr * P * delta
+                Q[hs[0], ha[0]] += lr * delta
 
             # fim do laço por episódio
 
@@ -246,7 +245,7 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
             ha.popleft()
             # hr.popleft()
             delta = G - Q[hs[0], ha[0]]
-            Q[hs[0], ha[0]] += lr * P * delta
+            Q[hs[0], ha[0]] += lr * delta
 
         sum_rewards_per_ep.append(sum_rewards)
 
