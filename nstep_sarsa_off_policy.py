@@ -1,5 +1,6 @@
 # A "n-step SARSA" implementation
 from collections import deque
+from math import gamma
 
 import gym
 import numpy as np
@@ -25,8 +26,8 @@ def softmax_policy(Q, state):
 
 
 def importance_sampling(Q, state, action, num_actions, epsilon):
-    prob1 = epsilon_greedy_probs(Q, state, num_actions, epsilon)
-    return prob1[action]/(epsilon / num_actions)
+    TARGET = softmax(Q[state])
+    return TARGET[action]/(epsilon / num_actions)
 
 
 def epsilon_greedy_probs(Q, state, num_actions, epsilon):
@@ -136,7 +137,8 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
                 delta = (sum(gamma_array*hr) + gamma_power_nstep * V_next_state) - Q[hs[0], ha[0]]
 
                 # atualiza a Q-table para o par (estado,ação) de n passos atrás
-                Q[hs[0], ha[0]] += lr * P * delta
+                temp = np.array(P, np.float128)
+                Q[hs[0], ha[0]] += lr * np.prod(temp) * delta
 
             # fim do laço por episódio
 
@@ -148,17 +150,26 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
             ha.popleft()
             hr.popleft()
             P.popleft()
+            temp = np.array(P, np.float128)
             delta = (sum(gamma_array[0:j]*hr) + 0) - Q[hs[0], ha[0]]
-            Q[hs[0], ha[0]] += lr * P * delta
+            Q[hs[0], ha[0]] += lr * np.prod(temp) * delta
 
         sum_rewards_per_ep.append(sum_rewards)
 
         # a cada 100 episódios, imprime informação sobre o progresso
-        if (i+1) % 100 == 0:
-            avg_reward = np.mean(sum_rewards_per_ep[-100:])
-            print(f"Episode {i+1} Average Reward (last 100): {avg_reward:.3f}")
+        #if (i+1) % 100 == 0:
+        #    avg_reward = np.mean(sum_rewards_per_ep[-100:])
+        #    print(f"Episode {i+1} Average Reward (last 100): {avg_reward:.3f}")
 
     return sum_rewards_per_ep, Q
+
+
+def calculate_G(gamma_array, hr, V_next_state, P, nstep): 
+    G = 0
+    for step in range(nstep):
+        G += P[step] * (hr[step] + gamma_array[step] * G) + (1 - P[step]) * V_next_state
+    return G
+     
 
 # Algoritmo "n-step SARSA", online learning
 # Atenção: os espaços de estados e de ações precisam ser discretos, dados por valores inteiros
@@ -172,8 +183,8 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
     # usar o estado como índice das linhas e a ação como índice das colunas
     Q = np.random.uniform(low=-1.0, high=0.0,
                           size=(env.observation_space.n, num_actions))
-    # gamma_array = np.array([gamma**i for i in range(0, nstep)])
-    # gamma_power_nstep = gamma**nstep
+    gamma_array = np.array([gamma**i for i in range(0, nstep)])
+    gamma_power_nstep = gamma**nstep
 
     # para cada episódio, guarda sua soma de recompensas (retorno não-discontado)
     sum_rewards_per_ep = []
@@ -190,7 +201,8 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
         # históricos de: estados, ações e recompensas
         hs = deque(maxlen=nstep)
         ha = deque(maxlen=nstep)
-        G = 0 
+        hr = deque(maxlen=nstep)
+        P = deque(maxlen=nstep)
 
         # executa 1 episódio completo, fazendo atualizações na Q-table
         while not done:
@@ -209,13 +221,9 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
 
             hs.append(state)
             ha.append(action)
-            # hr.append(reward)
-
-            P = importance_sampling(Q, next_state,
-                                     next_action, num_actions, epsilon)
-
-            G = P * (reward + gamma * G) + (1 - P) * Q[state, action]
-
+            hr.append(reward)
+            P.append(importance_sampling(Q, next_state,
+                                     next_action, num_actions, epsilon))
             # se o histórico estiver completo,
             # vai fazer uma atualização no valor Q do estado mais antigo
             if len(hs) == nstep:
@@ -230,7 +238,8 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
                     V_next_state = Q[next_state, next_action]
 
                 # delta = (estimativa usando a nova recompensa) - estimativa antiga
-                delta = G - Q[hs[0], ha[0]]
+                # G = sum(gamma_array*hr) + gamma_power_nstep * V_next_state
+                delta = calculate_G(gamma_array, hr, V_next_state, P, nstep) - Q[hs[0], ha[0]]
 
                 # atualiza a Q-table para o par (estado,ação) de n passos atrás
                 Q[hs[0], ha[0]] += lr * delta
@@ -243,16 +252,17 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
         for j in range(laststeps-1, 0, -1):
             hs.popleft()
             ha.popleft()
-            # hr.popleft()
-            delta = G - Q[hs[0], ha[0]]
+            hr.popleft()
+            P.popleft()
+            delta = calculate_G(gamma_array, hr, V_next_state, P, j) - Q[hs[0], ha[0]]
             Q[hs[0], ha[0]] += lr * delta
 
         sum_rewards_per_ep.append(sum_rewards)
 
         # a cada 100 episódios, imprime informação sobre o progresso
-        if (i+1) % 100 == 0:
-            avg_reward = np.mean(sum_rewards_per_ep[-100:])
-            print(f"Episode {i+1} Average Reward (last 100): {avg_reward:.3f}")
+        #if (i+1) % 100 == 0:
+        #    avg_reward = np.mean(sum_rewards_per_ep[-100:])
+        #    print(f"Episode {i+1} Average Reward (last 100): {avg_reward:.3f}")
 
     return sum_rewards_per_ep, Q
 
@@ -260,11 +270,11 @@ if __name__ == "__main__":
     ENV_NAME = "Taxi-v3"
     r_max_plot = 10
 
-    EPISODES = 10000
-    LR = 0.01
+    EPISODES = 2000
+    LR = 0.1
     GAMMA = 0.95
     EPSILON = 1
-    NSTEPS = 3
+    NSTEPS = 1
 
     env = gym.make(ENV_NAME)
 
