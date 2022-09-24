@@ -1,9 +1,11 @@
 # A "n-step SARSA" implementation
 from collections import deque
-from math import gamma
+from math import gamma, exp
 
 import gym
 import numpy as np
+from functools import reduce
+import random
 
 from util_plot import plot_result
 from util_experiments import test_greedy_Q_policy
@@ -12,9 +14,11 @@ from util_experiments import test_greedy_Q_policy
 
 
 def softmax(x):
-    x = x - np.max(x)
-    x = np.exp(x)
-    x = x / np.sum(x)
+    temp_max = max(x)
+    x = [i - temp_max for i in x]
+    x = [exp(i) for i in x]
+    temp_sum = sum(x)
+    x = [i / temp_sum for i in x]
     return x
 
 # escolhe uma ação da Q-table usando uma estratégia softmax
@@ -77,9 +81,11 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
 
     # inicializa a tabela Q com valores aleatórios de -1.0 a 0.0
     # usar o estado como índice das linhas e a ação como índice das colunas
-    Q = np.random.uniform(low=-1.0, high=0.0,
-                          size=(env.observation_space.n, num_actions))
-    gamma_array = np.array([gamma**i for i in range(0, nstep)])
+    #Q = np.random.uniform(low=-1.0, high=0.0,
+     #                     size=(env.observation_space.n, num_actions))
+        
+    Q = [[random.uniform(0, 1) for _ in range(num_actions)] for _ in range(env.observation_space.n)]
+    gamma_array = [gamma**i for i in range(0, nstep)]
     gamma_power_nstep = gamma**nstep
 
     # para cada episódio, guarda sua soma de recompensas (retorno não-discontado)
@@ -98,7 +104,7 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
         hs = deque(maxlen=nstep)
         ha = deque(maxlen=nstep)
         hr = deque(maxlen=nstep)
-        P = deque(maxlen=nstep)
+        P = []
 
         # executa 1 episódio completo, fazendo atualizações na Q-table
         while not done:
@@ -131,14 +137,13 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
                     next_action = choose_action(
                         Q, next_state, num_actions, epsilon)
                     # para estados não-terminais -- valor máximo (melhor ação)
-                    V_next_state = Q[next_state, next_action]
+                    V_next_state = Q[next_state][next_action]
 
                 # delta = (estimativa usando a nova recompensa) - estimativa antiga
-                delta = (sum(gamma_array*hr) + gamma_power_nstep * V_next_state) - Q[hs[0], ha[0]]
+                delta = (sum(i*y for i,y in zip(gamma_array, hr)) + gamma_power_nstep * V_next_state) - Q[hs[0]][ha[0]]
 
                 # atualiza a Q-table para o par (estado,ação) de n passos atrás
-                temp = np.array(P, np.float128)
-                Q[hs[0], ha[0]] += lr * np.prod(temp) * delta
+                Q[hs[0]][ha[0]] += lr * reduce(lambda x,y:x*y, P) * delta
 
             # fim do laço por episódio
 
@@ -149,10 +154,10 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
             hs.popleft()
             ha.popleft()
             hr.popleft()
-            P.popleft()
-            temp = np.array(P, np.float128)
-            delta = (sum(gamma_array[0:j]*hr) + 0) - Q[hs[0], ha[0]]
-            Q[hs[0], ha[0]] += lr * np.prod(temp) * delta
+            P.pop(len(P)-1)
+            
+            delta = (sum(i*y for i,y in zip(gamma_array[:j], hr)) + 0) - Q[hs[0]][ha[0]]
+            Q[hs[0]][ha[0]] += lr * reduce(lambda x,y:x*y, P) * delta
 
         sum_rewards_per_ep.append(sum_rewards)
 
@@ -181,10 +186,8 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
 
     # inicializa a tabela Q com valores aleatórios de -1.0 a 0.0
     # usar o estado como índice das linhas e a ação como índice das colunas
-    Q = np.random.uniform(low=-1.0, high=0.0,
-                          size=(env.observation_space.n, num_actions))
-    gamma_array = np.array([gamma**i for i in range(0, nstep)])
-    gamma_power_nstep = gamma**nstep
+    Q = [[random.uniform(0, 1) for _ in range(num_actions)] for _ in range(env.observation_space.n)]
+    gamma_array = [gamma**i for i in range(0, nstep)]
 
     # para cada episódio, guarda sua soma de recompensas (retorno não-discontado)
     sum_rewards_per_ep = []
@@ -202,7 +205,7 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
         hs = deque(maxlen=nstep)
         ha = deque(maxlen=nstep)
         hr = deque(maxlen=nstep)
-        P = deque(maxlen=nstep)
+        P = []
 
         # executa 1 episódio completo, fazendo atualizações na Q-table
         while not done:
@@ -235,14 +238,14 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
                     next_action = choose_action(
                         Q, next_state, num_actions, epsilon)
                     # para estados não-terminais -- valor máximo (melhor ação)
-                    V_next_state = Q[next_state, next_action]
+                    V_next_state = Q[next_state][next_action]
 
                 # delta = (estimativa usando a nova recompensa) - estimativa antiga
                 # G = sum(gamma_array*hr) + gamma_power_nstep * V_next_state
-                delta = calculate_G(gamma_array, hr, V_next_state, P, nstep) - Q[hs[0], ha[0]]
+                delta = calculate_G(gamma_array, hr, V_next_state, P, nstep) - Q[hs[0]][ha[0]]
 
                 # atualiza a Q-table para o par (estado,ação) de n passos atrás
-                Q[hs[0], ha[0]] += lr * delta
+                Q[hs[0]][ha[0]] += lr * delta
 
             # fim do laço por episódio
 
@@ -253,9 +256,9 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
             hs.popleft()
             ha.popleft()
             hr.popleft()
-            P.popleft()
-            delta = calculate_G(gamma_array, hr, V_next_state, P, j) - Q[hs[0], ha[0]]
-            Q[hs[0], ha[0]] += lr * delta
+            P.pop(len(P)-1)
+            delta = calculate_G(gamma_array, hr, V_next_state, P, j) - Q[hs[0]][ha[0]]
+            Q[hs[0]][ha[0]] += lr * delta
 
         sum_rewards_per_ep.append(sum_rewards)
 
