@@ -70,7 +70,7 @@ def repeated_exec_steps(executions, alg_name, algorithm, env, num_steps, *args, 
     rew_mean, rew_std = rewards.mean(axis=0), rewards.std(axis=0)
     RESULTS = np.array([alg_name, rew_mean, rew_std], dtype=object)
     np.save(result_file_name, RESULTS, allow_pickle=True)
-    return alg_name, rew_mean, rew_std
+    return (alg_name, rew_mean, rew_std)
 
 
 def test_greedy_Q_policy(env, Q, num_episodes=100, render=False, render_wait=0.01):

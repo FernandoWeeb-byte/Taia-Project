@@ -7,7 +7,7 @@ import numpy as np
 from functools import reduce
 import random
 
-from util_plot import plot_result
+from util_plot import plot_result, plot_multiple_results
 from util_experiments import test_greedy_Q_policy, repeated_exec_steps
 
 # Softmax policy
@@ -281,16 +281,21 @@ if __name__ == "__main__":
     r_max_plot = 10
 
     EPISODES = 2000
-    LR = 0.1
-    GAMMA = 0.95
+    LR = 0.03514950860920979
+    GAMMA = 0.8295625495414156
     EPSILON = 1
     NSTEPS = 1
 
     env = gym.make(ENV_NAME)
-
-    results = repeated_exec_steps(20, 'n-step-sarsa-off-policy',
-                                  run_nstep_sarsa_offPolicy_control_variate, env, 10, EPISODES, NSTEPS, LR, GAMMA, EPSILON)
-    print(results)
+    all_results = []
+    for v_lr in [1e-4, 5e-5]:
+        for p_lr in [5e-5, 1e-5]:
+            results = repeated_exec_steps(20, 'n-step-sarsa-off-policy',
+                                          run_nstep_sarsa_offPolicy_control_variate, env, 100_000, EPISODES, NSTEPS, LR, GAMMA, EPSILON)
+            print(results)
+            all_results.append(results)
+    plot_multiple_results(all_results, cumulative=False,
+                          x_log_scale=True, plot_stddev=True, return_type='steps')
     # Roda o algoritmo "n-step SARSA"
     # rewards, Qtable = run_nstep_sarsa_offPolicy_control_variate(
     #    env, EPISODES, NSTEPS, LR, GAMMA, EPSILON, render=False)
