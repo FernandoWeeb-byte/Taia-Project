@@ -178,7 +178,7 @@ def run_nstep_sarsa_step(env, steps, nstep=1, lr=0.1, gamma=0.95, epsilon=0.1, r
                 next_action = choose_action(Q, next_state, num_actions, epsilon)
                 # para estados não-terminais -- valor máximo (melhor ação)
                 V_next_state = Q[next_state,next_action]
-                sum_rewards_per_ep.append(sum_rewards)
+                sum_rewards_per_ep.append((step, sum_rewards))
             # delta = (estimativa usando a nova recompensa) - estimativa antiga
             delta = ( sum(gamma_array*hr) + gamma_power_nstep * V_next_state ) - Q[hs[0],ha[0]]
             
