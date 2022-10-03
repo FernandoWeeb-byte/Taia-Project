@@ -90,7 +90,7 @@ def test_greedy_Q_policy(env, Q, num_episodes=100, render=False, render_wait=0.0
     episode_returns = []
     total_steps = 0
     for i in range(num_episodes):
-        print(f"Episode {i+1}")
+        # print(f"Episode {i+1}")
         obs = env.reset()
         if render:
             env.render()
@@ -105,9 +105,9 @@ def test_greedy_Q_policy(env, Q, num_episodes=100, render=False, render_wait=0.0
                 time.sleep(render_wait)
             total_steps += 1
             episode_returns[-1] += reward
-        print("- retorno:", episode_returns[-1])
+        # print("- retorno:", episode_returns[-1])
     mean_return = round(np.mean(episode_returns), 1)
-    print("Retorno médio (por episódio):", mean_return, end="")
-    print(", episódios:", len(episode_returns), end="")
-    print(", total de passos:", total_steps)
+    # print("Retorno médio (por episódio):", mean_return, end="")
+    # print(", episódios:", len(episode_returns), end="")
+    # print(", total de passos:", total_steps)
     return mean_return, episode_returns

@@ -169,7 +169,9 @@ def run_nstep_sarsa_offPolicy(env, episodes, nstep=1, lr=0.1, gamma=0.95, epsilo
         #    avg_reward = np.mean(sum_rewards_per_ep[-100:])
         #    print(f"Episode {i+1} Average Reward (last 100): {avg_reward:.3f}")
 
-    return sum_rewards_per_ep, Q
+    mean_return, episode_return = test_greedy_Q_policy(env, Q, episodes, False)
+    return episode_return, mean_return
+    # return sum_rewards_per_ep, Q
 
 
 def calculate_G(gamma_array, hr, V_next_state, P, nstep):
@@ -212,7 +214,6 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
         FINISH_STEP = 0
         # executa 1 episódio completo, fazendo atualizações na Q-table
         while not done:
-            FINISH_STEP += step
             # exibe/renderiza os passos no ambiente, durante 1 episódio a cada mil e também nos últimos 5 episódios
             # if render and (i >= (episodes - 5) or (i+1) % 1000 == 0):
             #    env.render()
@@ -273,7 +274,10 @@ def run_nstep_sarsa_offPolicy_control_variate(env, episodes, nstep=1, lr=0.1, ga
     #    avg_reward = np.mean(sum_rewards_per_ep[-100:])
     #    print(f"Episode {i+1} Average Reward (last 100): {avg_reward:.3f}")
 
-    return sum_rewards_per_ep, Q,
+    mean_return, episode_return = test_greedy_Q_policy(env, Q, episodes, False)
+    return episode_return, mean_return
+
+    # return sum_rewards_per_ep, Q,
 
 
 if __name__ == "__main__":
