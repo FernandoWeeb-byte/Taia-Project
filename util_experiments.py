@@ -8,7 +8,7 @@ import numpy as np
 
 def repeated_exec(executions, alg_name, algorithm, env, num_episodes, *args, **kwargs):
     env_name = str(env.unwrapped).replace('<', '_').replace('>', '_')
-    result_file_name = f"results/{env_name}-{alg_name}-episodes{num_episodes}-execs{executions}.npy"
+    result_file_name = f"/content/drive/MyDrive/taia/graficos/{env_name}-{alg_name}-episodes{num_episodes}-execs{executions}.npy"
     if os.path.exists(result_file_name):
         print("Loading results from", result_file_name)
         RESULTS = np.load(result_file_name, allow_pickle=True)
@@ -31,7 +31,7 @@ def repeated_exec(executions, alg_name, algorithm, env, num_episodes, *args, **k
 # fazer: descartar o alg_info
 def repeated_exec_steps(executions, alg_name, algorithm, env, num_steps, *args, **kwargs):
     env_name = str(env.unwrapped).replace('<', '_').replace('>', '_')
-    result_file_name = f"results/{env_name}-{alg_name}-steps{num_steps}-execs{executions}.npy"
+    result_file_name = f"/content/drive/MyDrive/taia/graficos/{env_name}-{alg_name}-steps{num_steps}-execs{executions}-steps.npy"
     if os.path.exists(result_file_name):
         print("Loading results from", result_file_name)
         RESULTS = np.load(result_file_name, allow_pickle=True)
@@ -90,7 +90,6 @@ def test_greedy_Q_policy(env, Q, num_episodes=100, render=False, render_wait=0.0
     episode_returns = []
     total_steps = 0
     for i in range(num_episodes):
-        # print(f"Episode {i+1}")
         obs = env.reset()
         if render:
             env.render()
@@ -105,9 +104,5 @@ def test_greedy_Q_policy(env, Q, num_episodes=100, render=False, render_wait=0.0
                 time.sleep(render_wait)
             total_steps += 1
             episode_returns[-1] += reward
-        # print("- retorno:", episode_returns[-1])
     mean_return = round(np.mean(episode_returns), 1)
-    # print("Retorno médio (por episódio):", mean_return, end="")
-    # print(", episódios:", len(episode_returns), end="")
-    # print(", total de passos:", total_steps)
     return mean_return, episode_returns
