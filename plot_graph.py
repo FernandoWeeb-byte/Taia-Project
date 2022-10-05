@@ -24,3 +24,11 @@ def moving_mean_plot(mean_list:list,passos,avg_window=50,algo=0,figsize=(12,6)):
     plt.xlabel('Passos')
     plt.ylabel(f'last {avg_window} rewards')
     plt.show()
+
+def save_results(file_name, list_np):
+    with open(f'./results/{file_name}', 'wb') as f:
+        np.save(f, list_np)
+
+def load_results(file_name):
+    with open(f'./results/{file_name}', 'rb') as f:
+        return np.load(f)
