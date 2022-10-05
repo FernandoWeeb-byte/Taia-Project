@@ -4,7 +4,7 @@ import gym
 import numpy as np
 from functools import reduce
 import random
-from util_experiments import test_greedy_Q_policy
+from util_experiments import test_greedy_Q_policy, test_greedy_Q_policy_steps
 from wrappers import DiscreteObservationWrapper
 
 def softmax(x):
@@ -120,22 +120,11 @@ def run_nstep_sarsa_offPolicy_steps(env, steps, nstep=1, lr=0.1, gamma=0.95, eps
                                      next_action, num_actions, epsilon))
         if len(hs) == nstep:
             if done:
-                print('aqui')
                 V_next_state = 0
                 next_state = env.reset()
+                sum_rewards_per_ep.append((step, sum_rewards))
                 sum_rewards = 0
-                laststeps = len(hs)
-                for j in range(laststeps-1, 0, -1):
-                    hs.popleft()
-                    ha.popleft()
-                    hr.popleft()
-                    P.pop(len(P)-1)
-
-                    delta = (
-                        sum(i*y for i, y in zip(gamma_array[:j], hr)) + 0) - Q[hs[0]][ha[0]]
-                    Q[hs[0]][ha[0]] += lr * reduce(lambda x, y: x*y, P) * delta
-
-                sum_rewards_per_ep.append(sum_rewards)
+    
             else:
                 next_action = choose_action(
                     Q, next_state, num_actions, epsilon)
@@ -147,9 +136,24 @@ def run_nstep_sarsa_offPolicy_steps(env, steps, nstep=1, lr=0.1, gamma=0.95, eps
 
             if not done:
                 sum_rewards_per_ep.append((step, sum_rewards))
+        if done:
+            next_state = env.reset()
+            sum_rewards_per_ep.append((step, sum_rewards))
+            sum_rewards = 0
+            laststeps = len(hs)
+            for j in range(laststeps-1, 0, -1):
+                hs.popleft()
+                ha.popleft()
+                hr.popleft()
+                P.pop(len(P)-1)
+                delta = (
+                    sum(i*y for i, y in zip(gamma_array[:j], hr)) + 0) - Q[hs[0]][ha[0]]
+                Q[hs[0]][ha[0]] += lr * reduce(lambda x, y: x*y, P) * delta
 
-    mean_return, episode_return = test_greedy_Q_policy(env, Q, 10000, False)
-    return episode_return, mean_return
+
+    all_return = test_greedy_Q_policy_steps(env, Q, steps, False)
+        
+    return all_return
 
 
 def calculate_G(gamma_array, hr, V_next_state, P, nstep):
@@ -276,7 +280,7 @@ def run_nstep_sarsa_offPolicy_control_variate_steps(env, steps, nstep=1, lr=0.1,
             if not done:
                 sum_rewards_per_ep.append((step, sum_rewards))
 
-    mean_return, episode_return = test_greedy_Q_policy(env, Q, 10000, False)
+    mean_return, episode_return = test_greedy_Q_policy_steps(env, Q, steps, False)
     return episode_return, mean_return
 
 if __name__ == "__main__":
