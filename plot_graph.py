@@ -25,6 +25,16 @@ def moving_mean_plot(mean_list:list,passos,avg_window=50,algo=0,figsize=(12,6)):
     plt.ylabel(f'last {avg_window} rewards')
     plt.show()
 
+def moving_mean_plot_many(mean_list:list, label:list, passos, avg_window=50, figsize=(12,6)):
+    plt.figure(figsize=figsize)
+    for i in mean_list:
+        plt.plot(np.arange(passos), rollavg_pandas(i, avg_window))
+    if label:
+        plt.legend(label)
+    plt.xlabel('Steps')
+    plt.ylabel(f'last {avg_window} rewards')
+    plt.show()
+
 def save_results(file_name, list_np):
     with open(f'./results/{file_name}', 'wb') as f:
         np.save(f, list_np)
